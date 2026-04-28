@@ -26,7 +26,7 @@ That's the entire runtime dependency surface. No `tokio`, no `hyper`, no `reqwes
 cargo add scanii
 ```
 
-Requires Rust 1.85 (MSRV) or newer.
+Targets current stable Rust.
 
 ## Quickstart
 

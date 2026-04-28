@@ -2,7 +2,6 @@
 name = "scanii"
 version = "1.0.0"
 edition = "2021"
-rust-version = "1.85"
 description = "Minimal-dependency Rust SDK for the Scanii content security API"
 license = "Apache-2.0"
 repository = "https://github.com/scanii/scanii-rust"

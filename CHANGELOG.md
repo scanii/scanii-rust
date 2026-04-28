@@ -28,5 +28,5 @@ Errors: `ScaniiError::Auth` (401/403), `ScaniiError::RateLimit` (429, with `retr
 - **Synchronous** — single-threaded by default; clients are `Send + Sync` and can be shared across threads.
 - **Builder-pattern construction** — `ScaniiClient::builder().key(...).secret(...).build()`.
 - **API v2.2.**
-- **MSRV 1.85.** Required by transitive deps in the ureq tree (idna_adapter ships edition-2024 source, which the Cargo shipped with Rust 1.85 understands).
-- **scanii-cli** integration tests cover the cross-OS matrix (Linux / macOS / Windows on stable + MSRV) without burning real Scanii credits.
+- **Targets current stable Rust; no MSRV pinned.**
+- **scanii-cli** integration tests cover the cross-OS matrix (Linux / macOS / Windows on stable) without burning real Scanii credits.
