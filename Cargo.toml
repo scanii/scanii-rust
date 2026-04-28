@@ -1,0 +1,23 @@
+[package]
+name = "scanii"
+version = "1.0.0"
+edition = "2021"
+rust-version = "1.75"
+description = "Minimal-dependency Rust SDK for the Scanii content security API"
+license = "Apache-2.0"
+repository = "https://github.com/scanii/scanii-rust"
+homepage = "https://scanii.com"
+documentation = "https://docs.rs/scanii"
+readme = "README.md"
+keywords = ["scanii", "malware", "security", "content-moderation", "api"]
+categories = ["api-bindings", "web-programming::http-client"]
+
+[dependencies]
+ureq = { version = "2", default-features = false, features = ["tls", "json"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[dev-dependencies]
+
+[lib]
+doctest = true
