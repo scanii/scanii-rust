@@ -54,12 +54,43 @@ SCANII_KEY=key SCANII_SECRET=secret SCANII_ENDPOINT=http://localhost:4000 \
   cargo run --example quickstart -- ./some-file.txt
 ```
 
+### Streaming uploads
+
+```rust,no_run
+use scanii::ScaniiClient;
+use std::io::Cursor;
+
+# fn main() -> Result<(), scanii::ScaniiError> {
+let client = ScaniiClient::builder()
+    .key("your-key")
+    .secret("your-secret")
+    .build()?;
+
+// From a file path (most common):
+let result = client.process(std::path::Path::new("./file.pdf"), None, None)?;
+
+// From any std::io::Read source — in-memory buffers, network streams, etc.:
+let bytes: &[u8] = b"hello world";
+let result = client.process_reader(
+    Cursor::new(bytes),
+    "hello.txt",
+    Some("text/plain"),
+    None,
+    None,
+)?;
+# Ok(()) }
+```
+
+`process_reader` and `process_async_reader` stream the body without buffering, so memory use is independent of content length.
+
 ## API
 
 | Method | REST | Returns |
 |---|---|---|
 | `process(path, metadata, callback)` | `POST /files` | `Result<ScaniiProcessingResult>` |
+| `process_reader(reader, filename, content_type, metadata, callback)` | `POST /files` | `Result<ScaniiProcessingResult>` |
 | `process_async(path, metadata, callback)` | `POST /files/async` | `Result<ScaniiPendingResult>` |
+| `process_async_reader(reader, filename, content_type, metadata, callback)` | `POST /files/async` | `Result<ScaniiPendingResult>` |
 | `fetch(url, metadata, callback)` | `POST /files/fetch` | `Result<ScaniiPendingResult>` |
 | `retrieve(id)` | `GET /files/{id}` | `Result<ScaniiProcessingResult>` |
 | `ping()` | `GET /ping` | `Result<()>` |

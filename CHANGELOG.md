@@ -9,7 +9,9 @@ First public release of the Scanii Rust SDK on crates.io.
 ### API surface
 
 - `ScaniiClient::process(path, metadata, callback)` → `ScaniiProcessingResult`
+- `ScaniiClient::process_reader(reader, filename, content_type, metadata, callback)` → `ScaniiProcessingResult`
 - `ScaniiClient::process_async(path, metadata, callback)` → `ScaniiPendingResult`
+- `ScaniiClient::process_async_reader(reader, filename, content_type, metadata, callback)` → `ScaniiPendingResult`
 - `ScaniiClient::fetch(location, metadata, callback)` → `ScaniiPendingResult`
 - `ScaniiClient::retrieve(id)` → `ScaniiProcessingResult`
 - `ScaniiClient::ping()` → `()`
@@ -22,6 +24,7 @@ Errors: `ScaniiError::Auth` (401/403), `ScaniiError::RateLimit` (429, with `retr
 ### Highlights
 
 - **Minimal dependencies** — `ureq`, `serde`, `serde_json`. `rustls` pulled transitively via ureq's `tls` feature.
+- **Streaming uploads** — `process_reader` and `process_async_reader` accept any `impl Read` source. Memory use is independent of content length.
 - **Synchronous** — single-threaded by default; clients are `Send + Sync` and can be shared across threads.
 - **Builder-pattern construction** — `ScaniiClient::builder().key(...).secret(...).build()`.
 - **API v2.2.**
