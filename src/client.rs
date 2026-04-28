@@ -456,9 +456,7 @@ fn url_encode(input: &str) -> String {
 fn base64_encode(input: &str) -> String {
     const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let bytes = input.as_bytes();
-    // `usize::div_ceil` would be cleaner but was stabilised in Rust 1.79 — our MSRV is 1.75.
-    #[allow(clippy::manual_div_ceil)]
-    let mut out = String::with_capacity((bytes.len() + 2) / 3 * 4);
+    let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
     let mut i = 0;
     while i + 3 <= bytes.len() {
         let n =
