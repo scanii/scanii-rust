@@ -1,62 +1,73 @@
 //! Hand-rolled `multipart/form-data` encoder (RFC 7578).
 //!
 //! ureq does not bundle a multipart encoder; this is the smallest viable
-//! implementation that covers the Scanii `POST /files` payload. Adds zero
-//! external dependencies.
+//! implementation that covers the Scanii `POST /files` payload.
+//!
+//! The body is split into a small **prologue** (text fields + the file part
+//! header) and a small **epilogue** (closing boundary). The file content
+//! itself is streamed by the caller — wrapping the prologue + reader +
+//! epilogue with `std::io::Read::chain` keeps memory use independent of
+//! file size.
 
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::Read;
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::error::ScaniiError;
-
 static BOUNDARY_COUNTER: AtomicU64 = AtomicU64::new(0);
 
-/// Encode the multipart body and return `(bytes, content_type)`.
-///
-/// `text_fields` are emitted before the binary file part. `file_path` is read
-/// in full into memory — adequate for typical Scanii payloads (the API rejects
-/// > 50 MiB regardless).
-pub(crate) fn encode(
-    file_path: &Path,
-    text_fields: &HashMap<String, String>,
-) -> Result<(Vec<u8>, String), ScaniiError> {
-    let boundary = make_boundary();
-    let content_type = format!("multipart/form-data; boundary={boundary}");
+/// Generate a unique multipart boundary string.
+pub(crate) fn make_boundary() -> String {
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let counter = BOUNDARY_COUNTER.fetch_add(1, Ordering::Relaxed);
+    format!("----scanii-rust-boundary-{nanos:x}-{counter:x}")
+}
 
-    let mut body: Vec<u8> = Vec::new();
+/// Build the `Content-Type` header value for a request using `boundary`.
+pub(crate) fn make_content_type(boundary: &str) -> String {
+    format!("multipart/form-data; boundary={boundary}")
+}
+
+/// Build the bytes that go *before* the file content: text-field parts
+/// followed by the file part header (boundary, Content-Disposition,
+/// Content-Type, blank line).
+pub(crate) fn build_prologue(
+    boundary: &str,
+    filename: &str,
+    content_type: &str,
+    text_fields: &HashMap<String, String>,
+) -> Vec<u8> {
+    let mut out: Vec<u8> = Vec::new();
 
     for (name, value) in text_fields {
-        write_text_part(&mut body, &boundary, name, value);
+        write_text_part(&mut out, boundary, name, value);
     }
 
-    let filename = file_path
-        .file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_else(|| "upload".to_owned());
-    let file_content_type = guess_content_type(file_path);
+    out.extend_from_slice(b"--");
+    out.extend_from_slice(boundary.as_bytes());
+    out.extend_from_slice(b"\r\n");
+    out.extend_from_slice(b"Content-Disposition: form-data; name=\"file\"; filename=\"");
+    out.extend_from_slice(filename.as_bytes());
+    out.extend_from_slice(b"\"\r\n");
+    out.extend_from_slice(b"Content-Type: ");
+    out.extend_from_slice(content_type.as_bytes());
+    out.extend_from_slice(b"\r\n\r\n");
 
-    let mut file = File::open(file_path)?;
-    let mut file_bytes = Vec::new();
-    file.read_to_end(&mut file_bytes)?;
+    out
+}
 
-    write_binary_part(
-        &mut body,
-        &boundary,
-        "file",
-        &filename,
-        file_content_type,
-        &file_bytes,
-    );
-
-    body.extend_from_slice(b"--");
-    body.extend_from_slice(boundary.as_bytes());
-    body.extend_from_slice(b"--\r\n");
-
-    Ok((body, content_type))
+/// Build the bytes that go *after* the file content: the trailing CRLF
+/// that closes the file part, then the closing boundary.
+pub(crate) fn build_epilogue(boundary: &str) -> Vec<u8> {
+    let mut out: Vec<u8> = Vec::new();
+    out.extend_from_slice(b"\r\n");
+    out.extend_from_slice(b"--");
+    out.extend_from_slice(boundary.as_bytes());
+    out.extend_from_slice(b"--\r\n");
+    out
 }
 
 fn write_text_part(out: &mut Vec<u8>, boundary: &str, name: &str, value: &str) {
@@ -71,43 +82,11 @@ fn write_text_part(out: &mut Vec<u8>, boundary: &str, name: &str, value: &str) {
     out.extend_from_slice(b"\r\n");
 }
 
-fn write_binary_part(
-    out: &mut Vec<u8>,
-    boundary: &str,
-    field_name: &str,
-    filename: &str,
-    content_type: &str,
-    bytes: &[u8],
-) {
-    out.extend_from_slice(b"--");
-    out.extend_from_slice(boundary.as_bytes());
-    out.extend_from_slice(b"\r\n");
-    out.extend_from_slice(b"Content-Disposition: form-data; name=\"");
-    out.extend_from_slice(field_name.as_bytes());
-    out.extend_from_slice(b"\"; filename=\"");
-    out.extend_from_slice(filename.as_bytes());
-    out.extend_from_slice(b"\"\r\n");
-    out.extend_from_slice(b"Content-Type: ");
-    out.extend_from_slice(content_type.as_bytes());
-    out.extend_from_slice(b"\r\n\r\n");
-    out.extend_from_slice(bytes);
-    out.extend_from_slice(b"\r\n");
-}
-
-fn make_boundary() -> String {
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_nanos())
-        .unwrap_or(0);
-    let counter = BOUNDARY_COUNTER.fetch_add(1, Ordering::Relaxed);
-    format!("----scanii-rust-boundary-{nanos:x}-{counter:x}")
-}
-
 /// Best-effort content-type lookup by extension. Falls back to
 /// `application/octet-stream`. The Scanii API does not require an accurate
 /// content-type on the multipart part — the server inspects the bytes — so a
 /// short table is sufficient.
-fn guess_content_type(path: &Path) -> &'static str {
+pub(crate) fn guess_content_type(path: &Path) -> &'static str {
     let ext = path
         .extension()
         .and_then(|e| e.to_str())
@@ -142,28 +121,34 @@ fn guess_content_type(path: &Path) -> &'static str {
 mod tests {
     use super::*;
     use std::collections::HashMap;
-    use std::io::Write;
+
+    /// Assemble the same body a streaming request would: prologue + content + epilogue.
+    fn assemble(prologue: &[u8], content: &[u8], epilogue: &[u8]) -> Vec<u8> {
+        let mut out: Vec<u8> = Vec::with_capacity(prologue.len() + content.len() + epilogue.len());
+        out.extend_from_slice(prologue);
+        out.extend_from_slice(content);
+        out.extend_from_slice(epilogue);
+        out
+    }
 
     #[test]
     fn encode_emits_well_formed_body() {
-        let dir = std::env::temp_dir();
-        let path = dir.join("scanii-rust-mp-test.txt");
-        let mut f = File::create(&path).unwrap();
-        f.write_all(b"hello world").unwrap();
-
+        let boundary = "test-boundary-123";
         let mut fields = HashMap::new();
         fields.insert("metadata[source]".into(), "unit".into());
 
-        let (body, ct) = encode(&path, &fields).unwrap();
-        assert!(ct.starts_with("multipart/form-data; boundary="));
+        let prologue = build_prologue(boundary, "hello.txt", "text/plain", &fields);
+        let epilogue = build_epilogue(boundary);
+        let content = b"hello world";
 
+        let body = assemble(&prologue, content, &epilogue);
         let body_str = String::from_utf8_lossy(&body);
+
         assert!(body_str.contains("name=\"metadata[source]\""));
-        assert!(body_str.contains("name=\"file\"; filename=\"scanii-rust-mp-test.txt\""));
+        assert!(body_str.contains("name=\"file\"; filename=\"hello.txt\""));
         assert!(body_str.contains("hello world"));
         assert!(body_str.ends_with("--\r\n"));
-
-        std::fs::remove_file(&path).ok();
+        assert!(body_str.contains(&format!("--{boundary}--\r\n")));
     }
 
     #[test]
@@ -171,6 +156,12 @@ mod tests {
         let a = make_boundary();
         let b = make_boundary();
         assert_ne!(a, b);
+    }
+
+    #[test]
+    fn make_content_type_includes_boundary() {
+        let ct = make_content_type("xyz");
+        assert_eq!(ct, "multipart/form-data; boundary=xyz");
     }
 
     #[test]
