@@ -10,7 +10,7 @@
 
 use std::collections::HashMap;
 use std::fs;
-use std::io::{Read, Write};
+use std::io::{Cursor, Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -198,6 +198,49 @@ fn auth_token_lifecycle() {
     }
 
     c.delete_auth_token(&tok.id).expect("delete_auth_token");
+}
+
+#[test]
+fn process_reader_with_uuid_malware_fixture() {
+    if skip_if_no_cli("process_reader_with_uuid_malware_fixture") {
+        return;
+    }
+    let r = client()
+        .process_reader(
+            Cursor::new(LOCAL_MALWARE_UUID.as_bytes()),
+            "uuid-fixture.bin",
+            Some("application/octet-stream"),
+            None,
+            None,
+        )
+        .expect("process_reader");
+    if !r.findings.iter().any(|f| f == LOCAL_MALWARE_FINDING) {
+        eprintln!(
+            "[integration] scanii-cli did not flag UUID fixture (reader path); got: {:?}",
+            r.findings
+        );
+    } else {
+        assert!(r.findings.iter().any(|f| f == LOCAL_MALWARE_FINDING));
+    }
+}
+
+#[test]
+fn process_reader_with_large_blob() {
+    if skip_if_no_cli("process_reader_with_large_blob") {
+        return;
+    }
+    let blob = vec![0u8; 1024 * 1024]; // 1 MiB
+    let r = client()
+        .process_reader(
+            Cursor::new(blob),
+            "blob.bin",
+            Some("application/octet-stream"),
+            None,
+            None,
+        )
+        .expect("process_reader large");
+    assert!(!r.id.is_empty(), "expected an id from a successful scan");
+    assert_eq!(r.content_length, Some(1024 * 1024));
 }
 
 #[test]

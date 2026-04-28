@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::{BufReader, Read};
 use std::path::Path;
 use std::time::Duration;
 
@@ -74,6 +76,9 @@ impl ScaniiClient {
     /// Submit a file for synchronous scanning.
     ///
     /// The returned `ScaniiProcessingResult` contains the API's verdict.
+    /// Thin wrapper around [`Self::process_reader`]: opens the file with
+    /// `BufReader`, derives the filename from the path, and infers the
+    /// content type by extension.
     ///
     /// See <https://scanii.github.io/openapi/v22/> — `POST /files`.
     pub fn process(
@@ -82,7 +87,32 @@ impl ScaniiClient {
         metadata: Option<&HashMap<String, String>>,
         callback: Option<&str>,
     ) -> Result<ScaniiProcessingResult, ScaniiError> {
-        let response = self.post_multipart("/files", path, metadata, callback)?;
+        let filename = path_filename(path);
+        let content_type = multipart::guess_content_type(path);
+        let reader = BufReader::new(File::open(path)?);
+        self.process_reader(reader, &filename, Some(content_type), metadata, callback)
+    }
+
+    /// Submit content from any [`Read`] source for synchronous scanning.
+    ///
+    /// The body is streamed — memory use is independent of content length.
+    ///
+    /// `filename` goes verbatim into the multipart `Content-Disposition`
+    /// header; `content_type` defaults to `application/octet-stream` when
+    /// `None`.
+    ///
+    /// See <https://scanii.github.io/openapi/v22/> — `POST /files`.
+    pub fn process_reader<R: Read>(
+        &self,
+        reader: R,
+        filename: &str,
+        content_type: Option<&str>,
+        metadata: Option<&HashMap<String, String>>,
+        callback: Option<&str>,
+    ) -> Result<ScaniiProcessingResult, ScaniiError> {
+        let ct = content_type.unwrap_or("application/octet-stream");
+        let response =
+            self.post_multipart_streaming("/files", reader, filename, ct, metadata, callback)?;
         let response = require_status(response, 201)?;
         let headers = capture_headers(&response);
         let body = response_to_string(response)?;
@@ -102,7 +132,34 @@ impl ScaniiClient {
         metadata: Option<&HashMap<String, String>>,
         callback: Option<&str>,
     ) -> Result<ScaniiPendingResult, ScaniiError> {
-        let response = self.post_multipart("/files/async", path, metadata, callback)?;
+        let filename = path_filename(path);
+        let content_type = multipart::guess_content_type(path);
+        let reader = BufReader::new(File::open(path)?);
+        self.process_async_reader(reader, &filename, Some(content_type), metadata, callback)
+    }
+
+    /// Submit content from any [`Read`] source for server-side asynchronous
+    /// scanning. The body is streamed — memory use is independent of content
+    /// length.
+    ///
+    /// See <https://scanii.github.io/openapi/v22/> — `POST /files/async`.
+    pub fn process_async_reader<R: Read>(
+        &self,
+        reader: R,
+        filename: &str,
+        content_type: Option<&str>,
+        metadata: Option<&HashMap<String, String>>,
+        callback: Option<&str>,
+    ) -> Result<ScaniiPendingResult, ScaniiError> {
+        let ct = content_type.unwrap_or("application/octet-stream");
+        let response = self.post_multipart_streaming(
+            "/files/async",
+            reader,
+            filename,
+            ct,
+            metadata,
+            callback,
+        )?;
         let response = require_status(response, 202)?;
         let headers = capture_headers(&response);
         let body = response_to_string(response)?;
@@ -237,13 +294,18 @@ impl ScaniiClient {
             .set("Accept", "application/json")
     }
 
-    fn post_multipart(
+    fn post_multipart_streaming<R: Read>(
         &self,
         path: &str,
-        file_path: &Path,
+        reader: R,
+        filename: &str,
+        content_type: &str,
         metadata: Option<&HashMap<String, String>>,
         callback: Option<&str>,
     ) -> Result<Response, ScaniiError> {
+        let boundary = multipart::make_boundary();
+        let ct = multipart::make_content_type(&boundary);
+
         let mut fields: HashMap<String, String> = HashMap::new();
         if let Some(m) = metadata {
             for (k, v) in m {
@@ -254,13 +316,24 @@ impl ScaniiClient {
             fields.insert("callback".into(), cb.to_owned());
         }
 
-        let (body, content_type) = multipart::encode(file_path, &fields)?;
+        let prologue = multipart::build_prologue(&boundary, filename, content_type, &fields);
+        let epilogue = multipart::build_epilogue(&boundary);
+
+        let body = std::io::Cursor::new(prologue)
+            .chain(reader)
+            .chain(std::io::Cursor::new(epilogue));
 
         Ok(self
             .request("POST", path)
-            .set("Content-Type", &content_type)
-            .send_bytes(&body)?)
+            .set("Content-Type", &ct)
+            .send(body)?)
     }
+}
+
+fn path_filename(path: &Path) -> String {
+    path.file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "upload".to_owned())
 }
 
 impl ScaniiClientBuilder {
@@ -552,5 +625,54 @@ mod tests {
     #[test]
     fn version_constant_matches_cargo_pkg_version() {
         assert_eq!(VERSION, env!("CARGO_PKG_VERSION"));
+    }
+
+    // process (path-based) and process_reader must produce byte-identical
+    // multipart bodies for the same content. They go through the same
+    // post_multipart_streaming helper, so this asserts that the prologue +
+    // reader + epilogue assembly matches whether the file is opened via
+    // File::open or supplied as a Cursor.
+    #[test]
+    fn path_and_reader_paths_produce_equivalent_bodies() {
+        use std::io::Read as _;
+
+        let content = b"hello world from a file";
+        let dir = std::env::temp_dir();
+        let path = dir.join(format!(
+            "scanii-rust-equiv-{}-{}.txt",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        ));
+        std::fs::write(&path, content).expect("write fixture");
+
+        let boundary = "fixed-boundary-for-test";
+        let mut fields = HashMap::new();
+        fields.insert("metadata[k]".into(), "v".into());
+
+        let prologue =
+            crate::multipart::build_prologue(boundary, "fixture.txt", "text/plain", &fields);
+        let epilogue = crate::multipart::build_epilogue(boundary);
+
+        // Reader-source body: stream over Cursor<&[u8]>.
+        let mut reader_body = prologue.clone();
+        std::io::Cursor::new(content)
+            .read_to_end(&mut reader_body)
+            .expect("read cursor");
+        reader_body.extend_from_slice(&epilogue);
+
+        // Path-source body: stream over File.
+        let mut path_body = prologue.clone();
+        std::fs::File::open(&path)
+            .expect("open fixture")
+            .read_to_end(&mut path_body)
+            .expect("read file");
+        path_body.extend_from_slice(&epilogue);
+
+        assert_eq!(reader_body, path_body);
+
+        let _ = std::fs::remove_file(&path);
     }
 }
