@@ -104,8 +104,8 @@ fn ping_with_bad_credentials_returns_auth_error() {
 }
 
 #[test]
-fn process_clean_file_returns_no_findings() {
-    if skip_if_no_cli("process_clean_file_returns_no_findings") {
+fn process_file_clean_returns_no_findings() {
+    if skip_if_no_cli("process_file_clean_returns_no_findings") {
         return;
     }
     let path = temp_file(b"hello world");
@@ -114,8 +114,8 @@ fn process_clean_file_returns_no_findings() {
     metadata.insert("tag".to_owned(), "clean".to_owned());
 
     let r = client()
-        .process(&path, Some(&metadata), None)
-        .expect("process");
+        .process_file(&path, Some(&metadata), None)
+        .expect("process_file");
     assert!(!r.id.is_empty(), "result must have an id");
     assert!(
         r.findings.is_empty(),
@@ -130,12 +130,14 @@ fn process_clean_file_returns_no_findings() {
 }
 
 #[test]
-fn process_malware_uuid_fixture_flags_file() {
-    if skip_if_no_cli("process_malware_uuid_fixture_flags_file") {
+fn process_file_malware_uuid_fixture_flags_file() {
+    if skip_if_no_cli("process_file_malware_uuid_fixture_flags_file") {
         return;
     }
     let path = temp_file(LOCAL_MALWARE_UUID.as_bytes());
-    let r = client().process(&path, None, None).expect("process");
+    let r = client()
+        .process_file(&path, None, None)
+        .expect("process_file");
     if !r.findings.iter().any(|f| f == LOCAL_MALWARE_FINDING) {
         eprintln!(
             "[integration] scanii-cli did not flag UUID fixture; got: {:?} (older cli build)",
@@ -148,14 +150,14 @@ fn process_malware_uuid_fixture_flags_file() {
 }
 
 #[test]
-fn process_async_returns_pending_then_retrievable() {
-    if skip_if_no_cli("process_async_returns_pending_then_retrievable") {
+fn process_async_file_returns_pending_then_retrievable() {
+    if skip_if_no_cli("process_async_file_returns_pending_then_retrievable") {
         return;
     }
     let path = temp_file(b"hello async");
     let pending = client()
-        .process_async(&path, None, None)
-        .expect("process_async");
+        .process_async_file(&path, None, None)
+        .expect("process_async_file");
     assert!(!pending.id.is_empty());
 
     thread::sleep(Duration::from_millis(500));
@@ -201,22 +203,22 @@ fn auth_token_lifecycle() {
 }
 
 #[test]
-fn process_reader_with_uuid_malware_fixture() {
-    if skip_if_no_cli("process_reader_with_uuid_malware_fixture") {
+fn process_stream_with_uuid_malware_fixture() {
+    if skip_if_no_cli("process_stream_with_uuid_malware_fixture") {
         return;
     }
     let r = client()
-        .process_reader(
+        .process(
             Cursor::new(LOCAL_MALWARE_UUID.as_bytes()),
             "uuid-fixture.bin",
             Some("application/octet-stream"),
             None,
             None,
         )
-        .expect("process_reader");
+        .expect("process stream");
     if !r.findings.iter().any(|f| f == LOCAL_MALWARE_FINDING) {
         eprintln!(
-            "[integration] scanii-cli did not flag UUID fixture (reader path); got: {:?}",
+            "[integration] scanii-cli did not flag UUID fixture (stream path); got: {:?}",
             r.findings
         );
     } else {
@@ -225,22 +227,54 @@ fn process_reader_with_uuid_malware_fixture() {
 }
 
 #[test]
-fn process_reader_with_large_blob() {
-    if skip_if_no_cli("process_reader_with_large_blob") {
+fn process_stream_with_large_blob() {
+    if skip_if_no_cli("process_stream_with_large_blob") {
         return;
     }
     let blob = vec![0u8; 1024 * 1024]; // 1 MiB
     let r = client()
-        .process_reader(
+        .process(
             Cursor::new(blob),
             "blob.bin",
             Some("application/octet-stream"),
             None,
             None,
         )
-        .expect("process_reader large");
+        .expect("process stream large");
     assert!(!r.id.is_empty(), "expected an id from a successful scan");
     assert_eq!(r.content_length, Some(1024 * 1024));
+}
+
+#[allow(deprecated)]
+#[test]
+fn deprecated_process_reader_alias_still_works() {
+    if skip_if_no_cli("deprecated_process_reader_alias_still_works") {
+        return;
+    }
+    let r = client()
+        .process_reader(
+            Cursor::new(b"hello from deprecated alias" as &[u8]),
+            "alias.bin",
+            Some("application/octet-stream"),
+            None,
+            None,
+        )
+        .expect("process_reader alias");
+    assert!(!r.id.is_empty());
+}
+
+#[allow(deprecated)]
+#[test]
+fn deprecated_process_path_alias_still_works() {
+    if skip_if_no_cli("deprecated_process_path_alias_still_works") {
+        return;
+    }
+    let path = temp_file(b"hello from process_path alias");
+    let r = client()
+        .process_path(&path, None, None)
+        .expect("process_path alias");
+    assert!(!r.id.is_empty());
+    let _ = fs::remove_file(path);
 }
 
 #[test]
@@ -291,7 +325,7 @@ fn callback_delivery() {
     });
 
     let path = temp_file(b"hello callback");
-    let _ = client().process(&path, None, Some(&format!("http://127.0.0.1:{port}/cb")));
+    let _ = client().process_file(&path, None, Some(&format!("http://127.0.0.1:{port}/cb")));
 
     let _ = server_thread.join();
     let body = captured.lock().unwrap().clone();

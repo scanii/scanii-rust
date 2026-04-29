@@ -27,7 +27,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let file_arg = std::env::args().nth(1).ok_or("usage: quickstart <file>")?;
     let path = Path::new(&file_arg);
 
-    let result = client.process(path, None, None)?;
+    let result = client.process_file(path, None, None)?;
     println!("id:       {}", result.id);
     println!("findings: {:?}", result.findings);
     if let Some(checksum) = &result.checksum {

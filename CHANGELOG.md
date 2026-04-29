@@ -2,6 +2,26 @@
 
 All notable changes to the `scanii` crate are documented here. Versions follow [SemVer](https://semver.org).
 
+## 1.1.0 — Streaming standardization
+
+Aligns method names with the cross-SDK streaming standard.
+
+### New methods
+
+- `ScaniiClient::process<R: Read>(reader, filename, content_type, metadata, callback)` — canonical stream-based method (was `process_reader`)
+- `ScaniiClient::process_file(path, metadata, callback)` — path convenience (was `process`)
+- `ScaniiClient::process_async<R: Read>(reader, filename, content_type, metadata, callback)` — canonical stream-based (was `process_async_reader`)
+- `ScaniiClient::process_async_file(path, metadata, callback)` — path convenience (was `process_async`)
+
+### Deprecated (still functional)
+
+- `process_reader` — use `process` instead; will be removed in a future major version
+- `process_path` — use `process_file` instead; will be removed in a future major version
+- `process_async_reader` — use `process_async` instead; will be removed in a future major version
+- `process_async_path` — use `process_async_file` instead; will be removed in a future major version
+
+---
+
 ## 1.0.0 — Initial release
 
 First public release of the Scanii Rust SDK on crates.io.

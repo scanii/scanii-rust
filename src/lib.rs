@@ -22,7 +22,7 @@
 //!     .secret("your-secret")
 //!     .build()?;
 //!
-//! let result = client.process(std::path::Path::new("./file.pdf"), None, None)?;
+//! let result = client.process_file(std::path::Path::new("./file.pdf"), None, None)?;
 //! println!("findings: {:?}", result.findings);
 //! # Ok(())
 //! # }
