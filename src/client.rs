@@ -73,26 +73,6 @@ impl ScaniiClient {
         ScaniiClientBuilder::default()
     }
 
-    /// Submit a file for synchronous scanning.
-    ///
-    /// The returned `ScaniiProcessingResult` contains the API's verdict.
-    /// Thin wrapper around [`Self::process_reader`]: opens the file with
-    /// `BufReader`, derives the filename from the path, and infers the
-    /// content type by extension.
-    ///
-    /// See <https://scanii.github.io/openapi/v22/> — `POST /files`.
-    pub fn process(
-        &self,
-        path: &Path,
-        metadata: Option<&HashMap<String, String>>,
-        callback: Option<&str>,
-    ) -> Result<ScaniiProcessingResult, ScaniiError> {
-        let filename = path_filename(path);
-        let content_type = multipart::guess_content_type(path);
-        let reader = BufReader::new(File::open(path)?);
-        self.process_reader(reader, &filename, Some(content_type), metadata, callback)
-    }
-
     /// Submit content from any [`Read`] source for synchronous scanning.
     ///
     /// The body is streamed — memory use is independent of content length.
@@ -101,8 +81,10 @@ impl ScaniiClient {
     /// header; `content_type` defaults to `application/octet-stream` when
     /// `None`.
     ///
+    /// For file-on-disk uploads, prefer the [`Self::process_file`] convenience.
+    ///
     /// See <https://scanii.github.io/openapi/v22/> — `POST /files`.
-    pub fn process_reader<R: Read>(
+    pub fn process<R: Read>(
         &self,
         reader: R,
         filename: &str,
@@ -121,29 +103,33 @@ impl ScaniiClient {
         Ok(result)
     }
 
-    /// Submit a file for server-side asynchronous scanning. Returns a pending
-    /// id; the final result is delivered to `callback` (when supplied) or
-    /// fetched via [`Self::retrieve`].
+    /// Submit a file from disk for synchronous scanning.
     ///
-    /// See <https://scanii.github.io/openapi/v22/> — `POST /files/async`.
-    pub fn process_async(
+    /// Opens the file with `BufReader`, derives the filename from the path,
+    /// and infers the content type by extension. Delegates to [`Self::process`].
+    ///
+    /// See <https://scanii.github.io/openapi/v22/> — `POST /files`.
+    pub fn process_file(
         &self,
         path: &Path,
         metadata: Option<&HashMap<String, String>>,
         callback: Option<&str>,
-    ) -> Result<ScaniiPendingResult, ScaniiError> {
+    ) -> Result<ScaniiProcessingResult, ScaniiError> {
         let filename = path_filename(path);
         let content_type = multipart::guess_content_type(path);
         let reader = BufReader::new(File::open(path)?);
-        self.process_async_reader(reader, &filename, Some(content_type), metadata, callback)
+        self.process(reader, &filename, Some(content_type), metadata, callback)
     }
 
     /// Submit content from any [`Read`] source for server-side asynchronous
     /// scanning. The body is streamed — memory use is independent of content
-    /// length.
+    /// length. Returns a pending id; the final result is delivered to
+    /// `callback` (when supplied) or fetched via [`Self::retrieve`].
+    ///
+    /// For file-on-disk uploads, prefer the [`Self::process_async_file`] convenience.
     ///
     /// See <https://scanii.github.io/openapi/v22/> — `POST /files/async`.
-    pub fn process_async_reader<R: Read>(
+    pub fn process_async<R: Read>(
         &self,
         reader: R,
         filename: &str,
@@ -166,6 +152,83 @@ impl ScaniiClient {
         let mut result: ScaniiPendingResult = parse_json(&body)?;
         attach_pending_headers(&mut result, headers);
         Ok(result)
+    }
+
+    /// Submit a file from disk for server-side asynchronous scanning.
+    ///
+    /// Opens the file with `BufReader` and delegates to [`Self::process_async`].
+    ///
+    /// See <https://scanii.github.io/openapi/v22/> — `POST /files/async`.
+    pub fn process_async_file(
+        &self,
+        path: &Path,
+        metadata: Option<&HashMap<String, String>>,
+        callback: Option<&str>,
+    ) -> Result<ScaniiPendingResult, ScaniiError> {
+        let filename = path_filename(path);
+        let content_type = multipart::guess_content_type(path);
+        let reader = BufReader::new(File::open(path)?);
+        self.process_async(reader, &filename, Some(content_type), metadata, callback)
+    }
+
+    /// Deprecated: use [`Self::process`] (stream-based) instead.
+    #[deprecated(
+        since = "1.1.0",
+        note = "use `process` (stream-based); will be removed in a future major version"
+    )]
+    pub fn process_reader<R: Read>(
+        &self,
+        reader: R,
+        filename: &str,
+        content_type: Option<&str>,
+        metadata: Option<&HashMap<String, String>>,
+        callback: Option<&str>,
+    ) -> Result<ScaniiProcessingResult, ScaniiError> {
+        self.process(reader, filename, content_type, metadata, callback)
+    }
+
+    /// Deprecated: use [`Self::process_file`] (path-based convenience) instead.
+    #[deprecated(
+        since = "1.1.0",
+        note = "use `process_file`; will be removed in a future major version"
+    )]
+    pub fn process_path(
+        &self,
+        path: &Path,
+        metadata: Option<&HashMap<String, String>>,
+        callback: Option<&str>,
+    ) -> Result<ScaniiProcessingResult, ScaniiError> {
+        self.process_file(path, metadata, callback)
+    }
+
+    /// Deprecated: use [`Self::process_async`] (stream-based) instead.
+    #[deprecated(
+        since = "1.1.0",
+        note = "use `process_async` (stream-based); will be removed in a future major version"
+    )]
+    pub fn process_async_reader<R: Read>(
+        &self,
+        reader: R,
+        filename: &str,
+        content_type: Option<&str>,
+        metadata: Option<&HashMap<String, String>>,
+        callback: Option<&str>,
+    ) -> Result<ScaniiPendingResult, ScaniiError> {
+        self.process_async(reader, filename, content_type, metadata, callback)
+    }
+
+    /// Deprecated: use [`Self::process_async_file`] (path-based convenience) instead.
+    #[deprecated(
+        since = "1.1.0",
+        note = "use `process_async_file`; will be removed in a future major version"
+    )]
+    pub fn process_async_path(
+        &self,
+        path: &Path,
+        metadata: Option<&HashMap<String, String>>,
+        callback: Option<&str>,
+    ) -> Result<ScaniiPendingResult, ScaniiError> {
+        self.process_async_file(path, metadata, callback)
     }
 
     /// Ask Scanii to download a remote URL and scan it asynchronously.
@@ -627,11 +690,10 @@ mod tests {
         assert_eq!(VERSION, env!("CARGO_PKG_VERSION"));
     }
 
-    // process (path-based) and process_reader must produce byte-identical
-    // multipart bodies for the same content. They go through the same
-    // post_multipart_streaming helper, so this asserts that the prologue +
-    // reader + epilogue assembly matches whether the file is opened via
-    // File::open or supplied as a Cursor.
+    // process_file and process must produce byte-identical multipart bodies
+    // for the same content. They go through the same post_multipart_streaming
+    // helper, so this asserts that the prologue + reader + epilogue assembly
+    // matches whether the file is opened via File::open or supplied as a Cursor.
     #[test]
     fn path_and_reader_paths_produce_equivalent_bodies() {
         use std::io::Read as _;

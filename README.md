@@ -39,7 +39,8 @@ fn main() -> Result<(), scanii::ScaniiError> {
         .secret("your-secret")
         .build()?;
 
-    let result = client.process(std::path::Path::new("./file.pdf"), None, None)?;
+    // Scan a file from disk:
+    let result = client.process_file(std::path::Path::new("./file.pdf"), None, None)?;
     println!("findings: {:?}", result.findings);
     Ok(())
 }
@@ -54,7 +55,7 @@ SCANII_KEY=key SCANII_SECRET=secret SCANII_ENDPOINT=http://localhost:4000 \
   cargo run --example quickstart -- ./some-file.txt
 ```
 
-### Streaming uploads
+### Scanning from any `Read` source
 
 ```rust,no_run
 use scanii::ScaniiClient;
@@ -67,11 +68,11 @@ let client = ScaniiClient::builder()
     .build()?;
 
 // From a file path (most common):
-let result = client.process(std::path::Path::new("./file.pdf"), None, None)?;
+let result = client.process_file(std::path::Path::new("./file.pdf"), None, None)?;
 
 // From any std::io::Read source — in-memory buffers, network streams, etc.:
 let bytes: &[u8] = b"hello world";
-let result = client.process_reader(
+let result = client.process(
     Cursor::new(bytes),
     "hello.txt",
     Some("text/plain"),
@@ -81,16 +82,16 @@ let result = client.process_reader(
 # Ok(()) }
 ```
 
-`process_reader` and `process_async_reader` stream the body without buffering, so memory use is independent of content length.
+`process` and `process_async` accept any `impl Read` and stream the body without buffering, so memory use is independent of content length.
 
 ## API
 
 | Method | REST | Returns |
 |---|---|---|
-| `process(path, metadata, callback)` | `POST /files` | `Result<ScaniiProcessingResult>` |
-| `process_reader(reader, filename, content_type, metadata, callback)` | `POST /files` | `Result<ScaniiProcessingResult>` |
-| `process_async(path, metadata, callback)` | `POST /files/async` | `Result<ScaniiPendingResult>` |
-| `process_async_reader(reader, filename, content_type, metadata, callback)` | `POST /files/async` | `Result<ScaniiPendingResult>` |
+| `process(reader, filename, content_type, metadata, callback)` | `POST /files` | `Result<ScaniiProcessingResult>` |
+| `process_file(path, metadata, callback)` | `POST /files` | `Result<ScaniiProcessingResult>` |
+| `process_async(reader, filename, content_type, metadata, callback)` | `POST /files/async` | `Result<ScaniiPendingResult>` |
+| `process_async_file(path, metadata, callback)` | `POST /files/async` | `Result<ScaniiPendingResult>` |
 | `fetch(url, metadata, callback)` | `POST /files/fetch` | `Result<ScaniiPendingResult>` |
 | `retrieve(id)` | `GET /files/{id}` | `Result<ScaniiProcessingResult>` |
 | `ping()` | `GET /ping` | `Result<()>` |
