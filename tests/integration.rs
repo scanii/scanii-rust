@@ -135,7 +135,9 @@ fn process_file_malware_uuid_fixture_flags_file() {
         return;
     }
     let path = temp_file(LOCAL_MALWARE_UUID.as_bytes());
-    let r = client().process_file(&path, None, None).expect("process_file");
+    let r = client()
+        .process_file(&path, None, None)
+        .expect("process_file");
     if !r.findings.iter().any(|f| f == LOCAL_MALWARE_FINDING) {
         eprintln!(
             "[integration] scanii-cli did not flag UUID fixture; got: {:?} (older cli build)",
