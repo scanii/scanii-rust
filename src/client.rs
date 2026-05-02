@@ -7,7 +7,9 @@ use std::time::Duration;
 use ureq::{Agent, AgentBuilder, Request, Response};
 
 use crate::error::ScaniiError;
-use crate::models::{ScaniiAuthToken, ScaniiPendingResult, ScaniiProcessingResult};
+use crate::models::{
+    ScaniiAuthToken, ScaniiPendingResult, ScaniiProcessingResult, ScaniiTraceResult,
+};
 use crate::multipart;
 
 const DEFAULT_ENDPOINT: &str = "https://api.scanii.com";
@@ -277,6 +279,74 @@ impl ScaniiClient {
         let path = format!("/files/{}", url_encode(id));
         let response = self.request("GET", &path).call()?;
         let response = require_status(response, 200)?;
+        let headers = capture_headers(&response);
+        let body = response_to_string(response)?;
+        let mut result: ScaniiProcessingResult = parse_json(&body)?;
+        attach_processing_headers(&mut result, headers);
+        Ok(result)
+    }
+
+    /// Retrieve the ordered processing events (trace) for a previously submitted scan.
+    ///
+    /// Returns `Ok(None)` when no trace exists for the given id (404).
+    /// Returns `Ok(Some(..))` when the trace is found (200).
+    ///
+    /// This is preview API surface per the v2.2 spec — the shape may shift
+    /// before it is marked stable.
+    ///
+    /// See <https://scanii.github.io/openapi/v22/> — `GET /files/{id}/trace`.
+    pub fn retrieve_trace(&self, id: &str) -> Result<Option<ScaniiTraceResult>, ScaniiError> {
+        if id.is_empty() {
+            return Err(ScaniiError::Config("id must not be empty".into()));
+        }
+        let path = format!("/files/{}/trace", url_encode(id));
+        let response = match self.request("GET", &path).call() {
+            Ok(r) => r,
+            Err(ureq::Error::Status(404, _)) => return Ok(None),
+            Err(e) => return Err(ScaniiError::from(e)),
+        };
+        let response = require_status(response, 200)?;
+        let headers = capture_headers(&response);
+        let body = response_to_string(response)?;
+        let mut result: ScaniiTraceResult = parse_json(&body)?;
+        result.request_id = headers.request_id;
+        result.host_id = headers.host_id;
+        result.resource_location = headers.location;
+        Ok(Some(result))
+    }
+
+    /// Submit a URL for synchronous scanning.
+    ///
+    /// Instructs the server to fetch the content from `location` and scan it,
+    /// returning a full [`ScaniiProcessingResult`] synchronously. Distinct from
+    /// [`Self::fetch`], which is asynchronous and posts to `/files/fetch`.
+    ///
+    /// This is preview API surface per the v2.2 spec — the shape may shift
+    /// before it is marked stable.
+    ///
+    /// See <https://scanii.github.io/openapi/v22/> — `POST /files`.
+    pub fn process_from_url(
+        &self,
+        location: &str,
+        metadata: Option<&HashMap<String, String>>,
+    ) -> Result<ScaniiProcessingResult, ScaniiError> {
+        if location.is_empty() {
+            return Err(ScaniiError::Config("location must not be empty".into()));
+        }
+
+        let mut owned: Vec<(String, String)> = vec![("location".into(), location.to_owned())];
+        if let Some(m) = metadata {
+            for (k, v) in m {
+                owned.push((format!("metadata[{k}]"), v.clone()));
+            }
+        }
+        let pairs: Vec<(&str, &str)> = owned
+            .iter()
+            .map(|(k, v)| (k.as_str(), v.as_str()))
+            .collect();
+
+        let response = self.request("POST", "/files").send_form(&pairs)?;
+        let response = require_status(response, 201)?;
         let headers = capture_headers(&response);
         let body = response_to_string(response)?;
         let mut result: ScaniiProcessingResult = parse_json(&body)?;

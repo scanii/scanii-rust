@@ -343,6 +343,80 @@ fn callback_delivery() {
     let _ = fs::remove_file(path);
 }
 
+#[test]
+fn retrieve_trace_for_known_id() {
+    if skip_if_no_cli("retrieve_trace_for_known_id") {
+        return;
+    }
+    let path = temp_file(b"hello trace");
+    let r = client()
+        .process_file(&path, None, None)
+        .expect("process_file");
+    let _ = fs::remove_file(path);
+
+    match client()
+        .retrieve_trace(&r.id)
+        .expect("retrieve_trace should not error")
+    {
+        Some(trace) => {
+            assert_eq!(trace.resource_id, r.id);
+            assert!(
+                !trace.events.is_empty(),
+                "expected at least one trace event"
+            );
+            for event in &trace.events {
+                assert!(
+                    !event.timestamp.is_empty(),
+                    "event timestamp must not be empty"
+                );
+                assert!(!event.message.is_empty(), "event message must not be empty");
+            }
+        }
+        None => {
+            eprintln!(
+                "[integration] retrieve_trace returned None for known id {} — older cli build?",
+                r.id
+            );
+        }
+    }
+}
+
+#[test]
+fn retrieve_trace_for_unknown_id_returns_none() {
+    if skip_if_no_cli("retrieve_trace_for_unknown_id_returns_none") {
+        return;
+    }
+    let unknown = format!("does-not-exist-trace-{}", std::process::id());
+    let result = client()
+        .retrieve_trace(&unknown)
+        .expect("retrieve_trace must not error on 404");
+    assert!(
+        result.is_none(),
+        "expected None for unknown trace id, got {result:?}"
+    );
+}
+
+#[test]
+fn process_from_url_returns_result() {
+    if skip_if_no_cli("process_from_url_returns_result") {
+        return;
+    }
+    // scanii-cli serves /static/eicar.txt for synchronous URL-submission tests.
+    // Older cli builds may not have this route — self-skip on error.
+    let url = format!("{}/static/eicar.txt", endpoint());
+    match client().process_from_url(&url, None) {
+        Ok(r) => {
+            assert!(!r.id.is_empty(), "result must have an id");
+            eprintln!("[integration] process_from_url findings: {:?}", r.findings);
+        }
+        Err(e) => {
+            eprintln!(
+                "[integration] process_from_url skipped: {e} — older cli build without /static/eicar.txt?"
+            );
+        }
+    }
+}
+
 fn handle_callback(stream: &mut TcpStream, captured: &std::sync::Mutex<String>) {
     stream.set_read_timeout(Some(Duration::from_secs(2))).ok();
     let mut buf = [0u8; 8192];

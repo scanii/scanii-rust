@@ -2,6 +2,26 @@
 
 All notable changes to the `scanii` crate are documented here. Versions follow [SemVer](https://semver.org).
 
+## 1.2.0 — v2.2 API surface
+
+Additive minor release tracking the Scanii v2.2 API.
+
+### New methods
+
+- `ScaniiClient::retrieve_trace(id)` — retrieve ordered processing events for a scan id (`GET /files/{id}/trace`). Returns `Ok(None)` on 404. Preview surface per the v2.2 spec.
+- `ScaniiClient::process_from_url(location, metadata)` — synchronous URL submission (`POST /files` with `location` form field). Server fetches and scans the URL, returning a `ScaniiProcessingResult`. Preview surface per the v2.2 spec.
+
+### New types
+
+- `ScaniiTraceResult` — holds `resource_id`, `events: Vec<ScaniiTraceEvent>`, and header-derived fields.
+- `ScaniiTraceEvent` — holds `timestamp` (ISO 8601 string) and `message`.
+
+### Deprecated
+
+- `ScaniiProcessingResult::error` — the server never populates this field on a successful response; server-side errors arrive as non-2xx responses and are surfaced via `ScaniiError`. Will be removed in a future major version.
+
+---
+
 ## 1.1.0 — Streaming standardization
 
 Aligns method names with the cross-SDK streaming standard.
