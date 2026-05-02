@@ -82,6 +82,25 @@ fn write_text_part(out: &mut Vec<u8>, boundary: &str, name: &str, value: &str) {
     out.extend_from_slice(b"\r\n");
 }
 
+/// Build a complete multipart/form-data body containing only text fields —
+/// no file part. Use when submitting a URL via `process_from_url`.
+pub(crate) fn build_text_only_body(
+    boundary: &str,
+    text_fields: &HashMap<String, String>,
+) -> Vec<u8> {
+    let mut out: Vec<u8> = Vec::new();
+    for (name, value) in text_fields {
+        write_text_part(&mut out, boundary, name, value);
+    }
+    // Closing boundary. No leading \r\n here — write_text_part already appended
+    // \r\n after the value, and the binary-file epilogue's leading \r\n is only
+    // needed to terminate raw file bytes that carry no trailing CRLF of their own.
+    out.extend_from_slice(b"--");
+    out.extend_from_slice(boundary.as_bytes());
+    out.extend_from_slice(b"--\r\n");
+    out
+}
+
 /// Best-effort content-type lookup by extension. Falls back to
 /// `application/octet-stream`. The Scanii API does not require an accurate
 /// content-type on the multipart part — the server inspects the bytes — so a

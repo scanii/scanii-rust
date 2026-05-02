@@ -92,8 +92,10 @@ let result = client.process(
 | `process_file(path, metadata, callback)` | `POST /files` | `Result<ScaniiProcessingResult>` |
 | `process_async(reader, filename, content_type, metadata, callback)` | `POST /files/async` | `Result<ScaniiPendingResult>` |
 | `process_async_file(path, metadata, callback)` | `POST /files/async` | `Result<ScaniiPendingResult>` |
+| `process_from_url(location, metadata)` *(preview)* | `POST /files` | `Result<ScaniiProcessingResult>` |
 | `fetch(url, metadata, callback)` | `POST /files/fetch` | `Result<ScaniiPendingResult>` |
 | `retrieve(id)` | `GET /files/{id}` | `Result<ScaniiProcessingResult>` |
+| `retrieve_trace(id)` *(preview)* | `GET /files/{id}/trace` | `Result<Option<ScaniiTraceResult>>` |
 | `ping()` | `GET /ping` | `Result<()>` |
 | `create_auth_token(timeout_seconds)` | `POST /auth/tokens` | `Result<ScaniiAuthToken>` |
 | `retrieve_auth_token(id)` | `GET /auth/tokens/{id}` | `Result<ScaniiAuthToken>` |

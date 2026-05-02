@@ -50,7 +50,10 @@
 
 pub use client::{ScaniiClient, ScaniiClientBuilder, VERSION};
 pub use error::ScaniiError;
-pub use models::{ScaniiAuthToken, ScaniiPendingResult, ScaniiProcessingResult};
+pub use models::{
+    ScaniiAuthToken, ScaniiPendingResult, ScaniiProcessingResult, ScaniiTraceEvent,
+    ScaniiTraceResult,
+};
 
 mod client;
 mod error;
