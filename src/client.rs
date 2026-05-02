@@ -334,18 +334,22 @@ impl ScaniiClient {
             return Err(ScaniiError::Config("location must not be empty".into()));
         }
 
-        let mut owned: Vec<(String, String)> = vec![("location".into(), location.to_owned())];
+        let mut fields: HashMap<String, String> = HashMap::new();
+        fields.insert("location".into(), location.to_owned());
         if let Some(m) = metadata {
             for (k, v) in m {
-                owned.push((format!("metadata[{k}]"), v.clone()));
+                fields.insert(format!("metadata[{k}]"), v.clone());
             }
         }
-        let pairs: Vec<(&str, &str)> = owned
-            .iter()
-            .map(|(k, v)| (k.as_str(), v.as_str()))
-            .collect();
 
-        let response = self.request("POST", "/files").send_form(&pairs)?;
+        let boundary = multipart::make_boundary();
+        let ct = multipart::make_content_type(&boundary);
+        let body = multipart::build_text_only_body(&boundary, &fields);
+
+        let response = self
+            .request("POST", "/files")
+            .set("Content-Type", &ct)
+            .send_bytes(&body)?;
         let response = require_status(response, 201)?;
         let headers = capture_headers(&response);
         let body = response_to_string(response)?;
