@@ -401,20 +401,19 @@ fn process_from_url_returns_result() {
     if skip_if_no_cli("process_from_url_returns_result") {
         return;
     }
-    // scanii-cli serves /static/eicar.txt for synchronous URL-submission tests.
-    // Older cli builds may not have this route — self-skip on error.
+    // scanii-cli serves /static/eicar.txt; setup-cli-action always pulls the latest image.
     let url = format!("{}/static/eicar.txt", endpoint());
-    match client().process_from_url(&url, None) {
-        Ok(r) => {
-            assert!(!r.id.is_empty(), "result must have an id");
-            eprintln!("[integration] process_from_url findings: {:?}", r.findings);
-        }
-        Err(e) => {
-            eprintln!(
-                "[integration] process_from_url skipped: {e} — older cli build without /static/eicar.txt?"
-            );
-        }
-    }
+    let r = client()
+        .process_from_url(&url, None)
+        .expect("process_from_url");
+    assert!(!r.id.is_empty(), "result must have an id");
+    assert!(
+        r.findings
+            .iter()
+            .any(|f| f == "content.malicious.eicar-test-signature"),
+        "expected EICAR finding, got {:?}",
+        r.findings
+    );
 }
 
 fn handle_callback(stream: &mut TcpStream, captured: &std::sync::Mutex<String>) {
