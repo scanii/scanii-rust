@@ -18,15 +18,17 @@ use std::sync::OnceLock;
 use std::thread;
 use std::time::{Duration, Instant};
 
-use scanii::{ScaniiClient, ScaniiError};
+use scanii::{ScaniiClient, ScaniiError, ScaniiTarget};
 
 const KEY: &str = "key";
 const SECRET: &str = "secret";
 const LOCAL_MALWARE_UUID: &str = "38DCC0C9-7FB6-4D0D-9C37-288A380C6BB9";
 const LOCAL_MALWARE_FINDING: &str = "content.malicious.local-test-file";
 
-fn endpoint() -> String {
-    std::env::var("SCANII_TEST_ENDPOINT").unwrap_or_else(|_| "http://localhost:4000".into())
+fn test_target() -> ScaniiTarget {
+    let url =
+        std::env::var("SCANII_TEST_ENDPOINT").unwrap_or_else(|_| "http://localhost:4000".into());
+    ScaniiTarget::from_url(url)
 }
 
 fn cli_available() -> bool {
@@ -35,7 +37,7 @@ fn cli_available() -> bool {
         let client = match ScaniiClient::builder()
             .key(KEY)
             .secret(SECRET)
-            .endpoint(endpoint())
+            .target(test_target())
             .timeout(Duration::from_secs(2))
             .build()
         {
@@ -50,7 +52,7 @@ fn skip_if_no_cli(test_name: &str) -> bool {
     if !cli_available() {
         eprintln!(
             "[integration] skipping `{test_name}` — scanii-cli not reachable at {}",
-            endpoint()
+            test_target().url()
         );
         return true;
     }
@@ -61,7 +63,7 @@ fn client() -> ScaniiClient {
     ScaniiClient::builder()
         .key(KEY)
         .secret(SECRET)
-        .endpoint(endpoint())
+        .target(test_target())
         .build()
         .expect("client builds")
 }
@@ -94,7 +96,7 @@ fn ping_with_bad_credentials_returns_auth_error() {
     let bad = ScaniiClient::builder()
         .key("nope")
         .secret("nope")
-        .endpoint(endpoint())
+        .target(test_target())
         .build()
         .unwrap();
     match bad.ping() {
@@ -192,7 +194,7 @@ fn auth_token_lifecycle() {
 
     let token_client = ScaniiClient::builder()
         .token(&tok.id)
-        .endpoint(endpoint())
+        .target(test_target())
         .build()
         .unwrap();
     if let Err(e) = token_client.ping() {
@@ -402,7 +404,7 @@ fn process_from_url_returns_result() {
         return;
     }
     // scanii-cli serves /static/eicar.txt; setup-cli-action always pulls the latest image.
-    let url = format!("{}/static/eicar.txt", endpoint());
+    let url = format!("{}/static/eicar.txt", test_target().url());
     let r = client()
         .process_from_url(&url, None)
         .expect("process_from_url");

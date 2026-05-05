@@ -58,6 +58,7 @@ pub struct ScaniiClientBuilder {
     key: Option<String>,
     secret: Option<String>,
     token: Option<String>,
+    target: Option<crate::ScaniiTarget>,
     endpoint: Option<String>,
     user_agent: Option<String>,
     timeout: Option<Duration>,
@@ -492,9 +493,35 @@ impl ScaniiClientBuilder {
         self
     }
 
-    /// Override the API endpoint. Defaults to `https://api.scanii.com`.
-    /// Use regional hosts (`https://api-eu1.scanii.com`, etc.) or
-    /// `http://localhost:4000` for scanii-cli local testing.
+    /// Set the regional API endpoint via a [`ScaniiTarget`].
+    ///
+    /// Use a regional constructor for production:
+    ///
+    /// ```no_run
+    /// use scanii::{ScaniiClient, ScaniiTarget};
+    /// # fn main() -> Result<(), scanii::ScaniiError> {
+    /// let client = ScaniiClient::builder()
+    ///     .key("k").secret("s")
+    ///     .target(ScaniiTarget::us1())
+    ///     .build()?;
+    /// # Ok(()) }
+    /// ```
+    ///
+    /// Or [`ScaniiTarget::from_url`] for local scanii-cli testing.
+    pub fn target(mut self, target: crate::ScaniiTarget) -> Self {
+        self.target = Some(target);
+        self
+    }
+
+    /// Override the API endpoint as a raw URL string.
+    ///
+    /// Prefer [`.target()`](ScaniiClientBuilder::target) with a
+    /// [`ScaniiTarget`] regional constructor or [`ScaniiTarget::from_url`].
+    #[deprecated(
+        since = "1.3.0",
+        note = "Use .target(ScaniiTarget::us1()) or ScaniiTarget::from_url(...) instead; \
+                will be removed in a future major version"
+    )]
     pub fn endpoint(mut self, endpoint: impl Into<String>) -> Self {
         self.endpoint = Some(endpoint.into());
         self
@@ -540,7 +567,19 @@ impl ScaniiClientBuilder {
             format!("Basic {}", base64_encode(&format!("{key}:{secret}")))
         };
 
-        let endpoint = self.endpoint.unwrap_or_else(|| DEFAULT_ENDPOINT.to_owned());
+        let endpoint = if let Some(t) = self.target {
+            t.url
+        } else if let Some(e) = self.endpoint {
+            e
+        } else {
+            eprintln!(
+                "[scanii] DEPRECATION: No target set; defaulting to https://api.scanii.com \
+                 (AUTO). This does not guarantee regional data placement. Use \
+                 .target(ScaniiTarget::us1()) or another regional constructor for explicit data \
+                 residency control. The AUTO default will be removed in a future major version."
+            );
+            DEFAULT_ENDPOINT.to_owned()
+        };
         let endpoint = endpoint.trim_end_matches('/').to_owned();
         let base_url = format!("{endpoint}{API_VERSION_PATH}");
 

@@ -2,6 +2,29 @@
 
 All notable changes to the `scanii` crate are documented here. Versions follow [SemVer](https://semver.org).
 
+## 1.3.0 — deprecate AUTO endpoint
+
+Additive minor release. Backward-compatible.
+
+### New types
+
+- `ScaniiTarget` — typed regional API endpoint. Regional constructors: `ScaniiTarget::us1()`,
+  `eu1()`, `eu2()`, `ap1()`, `ap2()`, `ca1()`. Custom URL constructor:
+  `ScaniiTarget::from_url(url)`.
+
+### New builder method
+
+- `ScaniiClientBuilder::target(ScaniiTarget)` — preferred way to set the API endpoint.
+
+### Deprecated
+
+- `ScaniiClientBuilder::endpoint(String)` — use `.target(ScaniiTarget::us1())` or
+  `.target(ScaniiTarget::from_url(...))` instead. Will be removed in a future major version.
+- Constructing a client without calling `.target(...)` or `.endpoint(...)` now emits a
+  deprecation warning to stderr at runtime (fallback to `https://api.scanii.com` / AUTO routing).
+
+---
+
 ## 1.2.0 — v2.2 API surface
 
 Additive minor release tracking the Scanii v2.2 API.

@@ -15,11 +15,12 @@
 //! # Quickstart
 //!
 //! ```no_run
-//! use scanii::ScaniiClient;
+//! use scanii::{ScaniiClient, ScaniiTarget};
 //! # fn main() -> Result<(), scanii::ScaniiError> {
 //! let client = ScaniiClient::builder()
 //!     .key("your-key")
 //!     .secret("your-secret")
+//!     .target(ScaniiTarget::us1())
 //!     .build()?;
 //!
 //! let result = client.process_file(std::path::Path::new("./file.pdf"), None, None)?;
@@ -42,6 +43,8 @@
 //! cargo test
 //! ```
 //!
+//! Use [`ScaniiTarget::from_url`] for custom endpoints:
+//! `ScaniiClient::builder().target(ScaniiTarget::from_url("http://localhost:4000"))`.
 //! Set `SCANII_TEST_ENDPOINT` to override the default `http://localhost:4000`.
 
 #![forbid(unsafe_code)]
@@ -54,8 +57,10 @@ pub use models::{
     ScaniiAuthToken, ScaniiPendingResult, ScaniiProcessingResult, ScaniiTraceEvent,
     ScaniiTraceResult,
 };
+pub use target::ScaniiTarget;
 
 mod client;
 mod error;
 mod models;
 mod multipart;
+mod target;
