@@ -31,12 +31,13 @@ Targets current stable Rust.
 ## Quickstart
 
 ```rust,no_run
-use scanii::ScaniiClient;
+use scanii::{ScaniiClient, ScaniiTarget};
 
 fn main() -> Result<(), scanii::ScaniiError> {
     let client = ScaniiClient::builder()
         .key("your-key")
         .secret("your-secret")
+        .target(ScaniiTarget::us1())
         .build()?;
 
     // Scan a file from disk:
@@ -58,13 +59,14 @@ SCANII_KEY=key SCANII_SECRET=secret SCANII_ENDPOINT=http://localhost:4000 \
 ### Scanning from any `Read` source
 
 ```rust,no_run
-use scanii::ScaniiClient;
+use scanii::{ScaniiClient, ScaniiTarget};
 use std::io::Cursor;
 
 # fn main() -> Result<(), scanii::ScaniiError> {
 let client = ScaniiClient::builder()
     .key("your-key")
     .secret("your-secret")
+    .target(ScaniiTarget::us1())
     .build()?;
 
 // From a file path (most common):
@@ -106,32 +108,34 @@ Full API reference: <https://scanii.github.io/openapi/v22/>.
 ## Regional endpoints
 
 ```rust
-use scanii::ScaniiClient;
+use scanii::{ScaniiClient, ScaniiTarget};
 let client = ScaniiClient::builder()
     .key("k")
     .secret("s")
-    .endpoint("https://api-eu1.scanii.com")
+    .target(ScaniiTarget::eu1())
     .build()
     .unwrap();
 ```
 
-| Region | Endpoint |
+| Method | Endpoint |
 |---|---|
-| Auto (default) | `https://api.scanii.com` |
-| US 1 | `https://api-us1.scanii.com` |
-| EU 1 | `https://api-eu1.scanii.com` |
-| EU 2 | `https://api-eu2.scanii.com` |
-| AP 1 | `https://api-ap1.scanii.com` |
-| AP 2 | `https://api-ap2.scanii.com` |
-| CA 1 | `https://api-ca1.scanii.com` |
+| `ScaniiTarget::us1()` | `https://api-us1.scanii.com` |
+| `ScaniiTarget::eu1()` | `https://api-eu1.scanii.com` |
+| `ScaniiTarget::eu2()` | `https://api-eu2.scanii.com` |
+| `ScaniiTarget::ap1()` | `https://api-ap1.scanii.com` |
+| `ScaniiTarget::ap2()` | `https://api-ap2.scanii.com` |
+| `ScaniiTarget::ca1()` | `https://api-ca1.scanii.com` |
+| ~~`ScaniiTarget::auto()`~~ | ~~`https://api.scanii.com`~~ — **deprecated**, does not guarantee regional data placement |
+
+Use `ScaniiTarget::from_url("http://localhost:4000")` for a custom or local endpoint.
 
 ## Errors
 
 ```rust,no_run
-use scanii::{ScaniiClient, ScaniiError};
+use scanii::{ScaniiClient, ScaniiError, ScaniiTarget};
 
 # fn run() -> Result<(), ScaniiError> {
-# let client = ScaniiClient::builder().key("k").secret("s").build()?;
+# let client = ScaniiClient::builder().key("k").secret("s").target(ScaniiTarget::us1()).build()?;
 match client.ping() {
     Ok(()) => println!("ok"),
     Err(ScaniiError::Auth { message, .. }) => eprintln!("bad creds: {message}"),
@@ -162,12 +166,19 @@ Override the endpoint by exporting `SCANII_TEST_ENDPOINT=...` before `cargo test
 Mint a short-lived token server-side and authenticate with it from a less-trusted client:
 
 ```rust,no_run
-# use scanii::ScaniiClient;
+# use scanii::{ScaniiClient, ScaniiTarget};
 # fn run() -> Result<(), scanii::ScaniiError> {
-let server_client = ScaniiClient::builder().key("k").secret("s").build()?;
+let server_client = ScaniiClient::builder()
+    .key("k")
+    .secret("s")
+    .target(ScaniiTarget::us1())
+    .build()?;
 let token = server_client.create_auth_token(300)?;
 
-let token_client = ScaniiClient::builder().token(&token.id).build()?;
+let token_client = ScaniiClient::builder()
+    .token(&token.id)
+    .target(ScaniiTarget::us1())
+    .build()?;
 token_client.ping()?;
 # Ok(()) }
 ```
