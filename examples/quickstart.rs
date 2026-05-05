@@ -12,17 +12,21 @@
 
 use std::path::Path;
 
-use scanii::ScaniiClient;
+use scanii::{ScaniiClient, ScaniiTarget};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let key = std::env::var("SCANII_KEY").map_err(|_| "set SCANII_KEY")?;
     let secret = std::env::var("SCANII_SECRET").map_err(|_| "set SCANII_SECRET")?;
 
-    let mut builder = ScaniiClient::builder().key(key).secret(secret);
-    if let Ok(endpoint) = std::env::var("SCANII_ENDPOINT") {
-        builder = builder.endpoint(endpoint);
-    }
-    let client = builder.build()?;
+    let target = std::env::var("SCANII_ENDPOINT")
+        .map(ScaniiTarget::from_url)
+        .unwrap_or_else(|_| ScaniiTarget::us1());
+
+    let client = ScaniiClient::builder()
+        .key(key)
+        .secret(secret)
+        .target(target)
+        .build()?;
 
     let file_arg = std::env::args().nth(1).ok_or("usage: quickstart <file>")?;
     let path = Path::new(&file_arg);

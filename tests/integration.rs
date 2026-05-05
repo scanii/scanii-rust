@@ -404,7 +404,7 @@ fn process_from_url_returns_result() {
         return;
     }
     // scanii-cli serves /static/eicar.txt; setup-cli-action always pulls the latest image.
-    let url = format!("{}/static/eicar.txt", endpoint());
+    let url = format!("{}/static/eicar.txt", test_target().url());
     let r = client()
         .process_from_url(&url, None)
         .expect("process_from_url");
