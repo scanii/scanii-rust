@@ -2,6 +2,14 @@
 
 All notable changes to the `scanii` crate are documented here. Versions follow [SemVer](https://semver.org).
 
+## 1.3.1 — dependency refresh
+
+Patch release. No API changes.
+
+- Refreshed `Cargo.lock` within existing semver ranges (`ureq 2`, `serde 1`,
+  `serde_json 1` — declared ranges unchanged, transitive patch/minor updates only).
+- Bumped CI action: `actions/checkout` v4 → v7.
+
 ## 1.3.0 — deprecate AUTO endpoint
 
 Additive minor release. Backward-compatible.
