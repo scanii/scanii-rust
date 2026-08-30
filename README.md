@@ -98,6 +98,8 @@ let result = client.process(
 | `fetch(url, metadata, callback)` | `POST /files/fetch` | `Result<ScaniiPendingResult>` |
 | `retrieve(id)` | `GET /files/{id}` | `Result<ScaniiProcessingResult>` |
 | `retrieve_trace(id)` *(preview)* | `GET /files/{id}/trace` | `Result<Option<ScaniiTraceResult>>` |
+| `delete(id)` | `DELETE /files/{id}` | `Result<()>` |
+| `delete_trace(id)` | `DELETE /files/{id}/trace` | `Result<()>` |
 | `ping()` | `GET /ping` | `Result<()>` |
 | `create_auth_token(timeout_seconds)` | `POST /auth/tokens` | `Result<ScaniiAuthToken>` |
 | `retrieve_auth_token(id)` | `GET /auth/tokens/{id}` | `Result<ScaniiAuthToken>` |
