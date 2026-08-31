@@ -292,9 +292,6 @@ impl ScaniiClient {
     /// Returns `Ok(None)` when no trace exists for the given id (404).
     /// Returns `Ok(Some(..))` when the trace is found (200).
     ///
-    /// This is preview API surface per the v2.2 spec — the shape may shift
-    /// before it is marked stable.
-    ///
     /// See <https://scanii.github.io/openapi/v22/> — `GET /files/{id}/trace`.
     pub fn retrieve_trace(&self, id: &str) -> Result<Option<ScaniiTraceResult>, ScaniiError> {
         if id.is_empty() {
@@ -351,9 +348,6 @@ impl ScaniiClient {
     /// Instructs the server to fetch the content from `location` and scan it,
     /// returning a full [`ScaniiProcessingResult`] synchronously. Distinct from
     /// [`Self::fetch`], which is asynchronous and posts to `/files/fetch`.
-    ///
-    /// This is preview API surface per the v2.2 spec — the shape may shift
-    /// before it is marked stable.
     ///
     /// See <https://scanii.github.io/openapi/v22/> — `POST /files`.
     pub fn process_from_url(

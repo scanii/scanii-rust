@@ -94,10 +94,10 @@ let result = client.process(
 | `process_file(path, metadata, callback)` | `POST /files` | `Result<ScaniiProcessingResult>` |
 | `process_async(reader, filename, content_type, metadata, callback)` | `POST /files/async` | `Result<ScaniiPendingResult>` |
 | `process_async_file(path, metadata, callback)` | `POST /files/async` | `Result<ScaniiPendingResult>` |
-| `process_from_url(location, metadata)` *(preview)* | `POST /files` | `Result<ScaniiProcessingResult>` |
+| `process_from_url(location, metadata)` | `POST /files` | `Result<ScaniiProcessingResult>` |
 | `fetch(url, metadata, callback)` | `POST /files/fetch` | `Result<ScaniiPendingResult>` |
 | `retrieve(id)` | `GET /files/{id}` | `Result<ScaniiProcessingResult>` |
-| `retrieve_trace(id)` *(preview)* | `GET /files/{id}/trace` | `Result<Option<ScaniiTraceResult>>` |
+| `retrieve_trace(id)` | `GET /files/{id}/trace` | `Result<Option<ScaniiTraceResult>>` |
 | `delete(id)` | `DELETE /files/{id}` | `Result<()>` |
 | `delete_trace(id)` | `DELETE /files/{id}/trace` | `Result<()>` |
 | `ping()` | `GET /ping` | `Result<()>` |

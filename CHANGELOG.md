@@ -2,6 +2,14 @@
 
 All notable changes to the `scanii` crate are documented here. Versions follow [SemVer](https://semver.org).
 
+## Unreleased
+
+### Changed
+
+- Dropped the "preview" designation from `retrieve_trace`, `process_from_url` and
+  `ScaniiTraceResult`. The trace endpoint is no longer marked preview in the contract,
+  and `process_from_url` was never preview; the methods themselves are unchanged.
+
 ## 1.4.1 — first published release of the split-delete API
 
 Release plumbing only — **no code changes since 1.4.0**.
