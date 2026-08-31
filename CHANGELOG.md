@@ -2,7 +2,7 @@
 
 All notable changes to the `scanii` crate are documented here. Versions follow [SemVer](https://semver.org).
 
-## Unreleased
+## 1.4.0 — split result and trace deletion
 
 - Added `ScaniiClient::delete(id)` to delete a processing result while retaining its trace.
 - Added `ScaniiClient::delete_trace(id)` to delete a trace independently.
