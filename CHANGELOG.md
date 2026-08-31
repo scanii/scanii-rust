@@ -2,6 +2,16 @@
 
 All notable changes to the `scanii` crate are documented here. Versions follow [SemVer](https://semver.org).
 
+## 1.4.1 — first published release of the split-delete API
+
+Release plumbing only — **no code changes since 1.4.0**.
+
+1.4.0 was tagged and released on GitHub but never reached crates.io: `Cargo.toml`
+was left at `1.3.1`, so `cargo publish` failed with `crate scanii@1.3.1 already
+exists on crates.io index`. 1.4.1 is therefore the first published version that
+carries `delete` and `delete_trace`. There is no 1.4.0 on crates.io; upgrade
+straight from 1.3.1 to 1.4.1.
+
 ## 1.4.0 — split result and trace deletion
 
 - Added `ScaniiClient::delete(id)` to delete a processing result while retaining its trace.
