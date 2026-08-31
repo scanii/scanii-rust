@@ -2,6 +2,27 @@
 
 All notable changes to the `scanii` crate are documented here. Versions follow [SemVer](https://semver.org).
 
+## 1.4.0 — split result and trace deletion
+
+Additive minor release. Backward-compatible.
+
+### New methods
+
+- `ScaniiClient::delete(id)` — deletes a previously processed file result (`DELETE /files/{id}`). Returns `Ok(())` on success and leaves the trace intact.
+- `ScaniiClient::delete_trace(id)` — deletes the processing trace for a previously processed file (`DELETE /files/{id}/trace`). Returns `Ok(())` on success.
+
+### Behavior
+
+- Deleting a scan result no longer removes its trace. Delete the trace separately with `delete_trace`.
+
+## 1.3.1 — dependency refresh
+
+Patch release. No API changes.
+
+- Refreshed `Cargo.lock` within existing semver ranges (`ureq 2`, `serde 1`,
+  `serde_json 1` — declared ranges unchanged, transitive patch/minor updates only).
+- Bumped CI action: `actions/checkout` v4 → v7.
+
 ## 1.3.0 — deprecate AUTO endpoint
 
 Additive minor release. Backward-compatible.
