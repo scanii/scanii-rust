@@ -316,6 +316,36 @@ impl ScaniiClient {
         Ok(Some(result))
     }
 
+    /// Delete the processing result for a previously submitted scan.
+    ///
+    /// The trace is retained and can still be retrieved separately.
+    ///
+    /// See <https://scanii.github.io/openapi/v22/> — `DELETE /files/{id}`.
+    pub fn delete(&self, id: &str) -> Result<(), ScaniiError> {
+        if id.is_empty() {
+            return Err(ScaniiError::Config("id must not be empty".into()));
+        }
+        let path = format!("/files/{}", url_encode(id));
+        let response = self.request("DELETE", &path).call()?;
+        let _ = require_status(response, 204)?;
+        Ok(())
+    }
+
+    /// Delete the processing trace for a previously submitted scan.
+    ///
+    /// The processing result is retained and can still be retrieved separately.
+    ///
+    /// See <https://scanii.github.io/openapi/v22/> — `DELETE /files/{id}/trace`.
+    pub fn delete_trace(&self, id: &str) -> Result<(), ScaniiError> {
+        if id.is_empty() {
+            return Err(ScaniiError::Config("id must not be empty".into()));
+        }
+        let path = format!("/files/{}/trace", url_encode(id));
+        let response = self.request("DELETE", &path).call()?;
+        let _ = require_status(response, 204)?;
+        Ok(())
+    }
+
     /// Submit a URL for synchronous scanning.
     ///
     /// Instructs the server to fetch the content from `location` and scan it,

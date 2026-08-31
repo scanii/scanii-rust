@@ -399,6 +399,50 @@ fn retrieve_trace_for_unknown_id_returns_none() {
 }
 
 #[test]
+fn delete_result_leaves_trace_and_delete_trace_leaves_result() {
+    if skip_if_no_cli("delete_result_leaves_trace_and_delete_trace_leaves_result") {
+        return;
+    }
+    let path = temp_file(b"delete lifecycle");
+    let result = client()
+        .process_file(&path, None, None)
+        .expect("process_file");
+    let _ = fs::remove_file(path);
+
+    client().delete(&result.id).expect("delete result");
+    assert!(
+        client().retrieve(&result.id).is_err(),
+        "result should be deleted"
+    );
+    assert!(
+        client()
+            .retrieve_trace(&result.id)
+            .expect("trace should remain")
+            .is_some(),
+        "trace should remain after result deletion"
+    );
+
+    client().delete_trace(&result.id).expect("delete trace");
+    assert!(
+        client()
+            .retrieve_trace(&result.id)
+            .expect("trace lookup")
+            .is_none(),
+        "trace should be deleted"
+    );
+}
+
+#[test]
+fn delete_unknown_ids_return_errors() {
+    if skip_if_no_cli("delete_unknown_ids_return_errors") {
+        return;
+    }
+    let unknown = format!("does-not-exist-delete-{}", std::process::id());
+    assert!(client().delete(&unknown).is_err());
+    assert!(client().delete_trace(&unknown).is_err());
+}
+
+#[test]
 fn process_from_url_returns_result() {
     if skip_if_no_cli("process_from_url_returns_result") {
         return;
