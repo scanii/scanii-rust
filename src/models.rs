@@ -104,8 +104,6 @@ pub struct ScaniiTraceEvent {
 /// Ordered processing events for a scan, returned by
 /// [`crate::ScaniiClient::retrieve_trace`].
 ///
-/// This is preview API surface — the shape may shift before it is marked stable.
-///
 /// See <https://scanii.github.io/openapi/v22/>.
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct ScaniiTraceResult {
