@@ -4,6 +4,8 @@ All notable changes to the `scanii` crate are documented here. Versions follow [
 
 ## [Unreleased]
 
+## [1.4.2] — 2026-11-21
+
 ### Changed
 
 - Dropped the "preview" designation from `retrieve_trace`, `process_from_url` and
