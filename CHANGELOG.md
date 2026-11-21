@@ -2,15 +2,15 @@
 
 All notable changes to the `scanii` crate are documented here. Versions follow [SemVer](https://semver.org).
 
-## Unreleased
+## [Unreleased]
 
 ### Changed
 
 - Dropped the "preview" designation from `retrieve_trace`, `process_from_url` and
   `ScaniiTraceResult`. The trace endpoint is no longer marked preview in the contract,
-  and `process_from_url` was never preview; the methods themselves are unchanged.
+  and `process_from_url` was never preview; the methods themselves are unchanged (#9).
 
-## 1.4.1 — first published release of the split-delete API
+## [1.4.1] — first published release of the split-delete API
 
 Release plumbing only — **no code changes since 1.4.0**.
 
@@ -20,12 +20,12 @@ exists on crates.io index`. 1.4.1 is therefore the first published version that
 carries `delete` and `delete_trace`. There is no 1.4.0 on crates.io; upgrade
 straight from 1.3.1 to 1.4.1.
 
-## 1.4.0 — split result and trace deletion
+## [1.4.0] — split result and trace deletion
 
 - Added `ScaniiClient::delete(id)` to delete a processing result while retaining its trace.
 - Added `ScaniiClient::delete_trace(id)` to delete a trace independently.
 
-## 1.3.1 — dependency refresh
+## [1.3.1] — dependency refresh
 
 Patch release. No API changes.
 
@@ -33,7 +33,7 @@ Patch release. No API changes.
   `serde_json 1` — declared ranges unchanged, transitive patch/minor updates only).
 - Bumped CI action: `actions/checkout` v4 → v7.
 
-## 1.3.0 — deprecate AUTO endpoint
+## [1.3.0] — deprecate AUTO endpoint
 
 Additive minor release. Backward-compatible.
 
@@ -56,7 +56,7 @@ Additive minor release. Backward-compatible.
 
 ---
 
-## 1.2.0 — v2.2 API surface
+## [1.2.0] — v2.2 API surface
 
 Additive minor release tracking the Scanii v2.2 API.
 
@@ -76,7 +76,7 @@ Additive minor release tracking the Scanii v2.2 API.
 
 ---
 
-## 1.1.0 — Streaming standardization
+## [1.1.0] — Streaming standardization
 
 Aligns method names with the cross-SDK streaming standard.
 
@@ -96,7 +96,7 @@ Aligns method names with the cross-SDK streaming standard.
 
 ---
 
-## 1.0.0 — Initial release
+## [1.0.0] — Initial release
 
 First public release of the Scanii Rust SDK on crates.io.
 
